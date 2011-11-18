@@ -48,8 +48,10 @@ Executable movie-db
   Main-is:  Main.hs       
   
   -- Packages needed in order to build this package.
-  Build-depends: base >= 3 && < 5, network >= 2.3, bytestring, HTTP, aeson, attoparsec, text, containers 
-  
+  Build-depends: base >= 3 && < 5, network >= 2.3, bytestring, HTTP, aeson, attoparsec, text, containers, utf8-string, parallel, monad-parallel 
+
+  GHC-Options: -threaded -O2
+ 
   -- Modules not exported by this package.
   -- Other-modules:       
   
