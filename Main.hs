@@ -309,6 +309,6 @@ htmlEncode s = concatMap (\c-> case c of
 
 
 main :: IO ()
-main = P.mapM titleHtml myMovies >>= \s-> UTF8.writeFile "./Movies.html" ("<html><head><link rel=\"stylesheet\" href=\"style.css\" type=\"text/css\" /></head><table>" ++  (concat s) ++ "</table></html>")
+main = P.mapM titleHtml myMovies >>= \s-> UTF8.writeFile "./Movies.html" ("<html>\n<head>\n<style type=\"text/css\">\np {\n    width: 600px;\n    word-wrap: break-word;\n}\n\nimg {\n    width: 320px;\n    height: 480px;\n}\n</style>\n</head>\n<table>" ++  (concat s) ++ "</table></html>")
 
 
