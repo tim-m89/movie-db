@@ -8,7 +8,8 @@ import Data.Attoparsec (parse, maybeResult)
 import qualified Data.HashMap.Strict (fromList, lookup)
 import Data.Maybe
 import Data.String (fromString)
-import Data.Text (pack, unpack)
+import Data.Text as Text
+import qualified Data.Text.IO as TextIO
 import Network (withSocketsDo)
 import Network.HTTP
 import qualified Network.HTTP.HandleStream as S
@@ -19,32 +20,32 @@ import Database.Persist
 import Database.Persist.Sqlite as Sqlite
 import Database.Persist.TH
 
-fileNameTitle :: String -> String
-fileNameTitle = fst . break (=='.')
+--fileNameTitle :: String -> String
+--fileNameTitle = fst . break (=='.')
 
 defAeson :: Aeson.Value
-defAeson = Aeson.Object $ Data.HashMap.Strict.fromList [(pack "Title", Aeson.String $ pack "Error"),
-                                    (pack "Year", Aeson.String $ pack "Error"),
-                                    (pack "Rated", Aeson.String $ pack "Error"),
-                                    (pack "Plot", Aeson.String $ pack "Error"),
-                                    (pack "Poster", Aeson.String $ pack "Error"),
-                                    (pack "Runtime", Aeson.String $ pack "Error"),
-                                    (pack "Rating", Aeson.String $ pack "Error"),
-                                    (pack "ID", Aeson.String $ pack "Error")]
+defAeson = Aeson.Object $ Data.HashMap.Strict.fromList [("Title", Aeson.String "Error"),
+                                    ("Year", Aeson.String "Error"),
+                                    ("Rated", Aeson.String "Error"),
+                                    ("Plot", Aeson.String "Error"),
+                                    ("Poster", Aeson.String "Error"),
+                                    ("Runtime", Aeson.String "Error"),
+                                    ("Rating", Aeson.String "Error"),
+                                    ("ID", Aeson.String "Error")]
 
 parseJson :: String -> Aeson.Value
 parseJson x = fromMaybe defAeson (maybeResult $ parse Aeson.json $ fromString x)
 
 share [mkPersist sqlSettings, mkMigrate "migrateAll"] [persist|
 Movie
-  title String
-  year String
-  rated String
-  plot String
-  poster String
-  runtime String
-  rating String
-  imdb String
+  title Text
+  year Text
+  rated Text
+  plot Text
+  poster Text
+  runtime Text
+  rating Text
+  imdb Text
   MovieIMDB imdb
 |]
 
@@ -61,9 +62,9 @@ aesonToMovie a = case a of
                     mid <- get "ID"
                     get "Response" >>= \r-> if r=="True" then (Just r) else Nothing
                     Just $ Movie mtitle myear mrated mplot mposter mruntime mrating mid
-                    where get :: String -> Maybe String
-                          get s = case (Data.HashMap.Strict.lookup (pack s) o) of
-                            Just (Aeson.String s) -> Just (unpack s)
+                    where get :: Text -> Maybe Text
+                          get s = case (Data.HashMap.Strict.lookup s o) of
+                            Just (Aeson.String s) -> Just s
                             _ -> Nothing
                   _ -> Nothing
 
@@ -74,7 +75,7 @@ myMovies :: [String]
 myMovies = [
   ""]
 
-ratingClass :: Movie -> String
+ratingClass :: Movie -> Text
 ratingClass m = case (movieRated m) of
   "R" -> "ratingR"
   "G" -> "ratingG"
@@ -82,10 +83,10 @@ ratingClass m = case (movieRated m) of
   "PG-13" -> "ratingPG13"
   otherwise -> "ratingNA"
 
-movieHtml :: Movie -> String
-movieHtml m = "<tr class=\"" ++ (ratingClass m) ++ "\"><td rowspan=\"2\"><img src=\"" ++ (moviePoster m) ++ "\" /></td><td><a href=\"http://www.imdb.com/title/" ++ (movieImdb m) ++ "/\">" ++
-              (htmlEncode $ movieTitle m) ++ " (" ++ (movieYear m) ++ ") (" ++ (movieRated m) ++ ")</a></td></tr><tr class=\"" ++ (ratingClass m) ++ "\"><td><p>" ++
-              (htmlEncode $ moviePlot m) ++ "<br /><br />Runtime: " ++ (movieRuntime m) ++ "<br /><br />Rated: " ++ (movieRating m) ++ "/10</p></td></tr>\n"
+movieHtml :: Movie -> Text
+movieHtml m = "<tr class=\"" `Text.append` (ratingClass m) `Text.append` "\"><td rowspan=\"2\"><img src=\"" `Text.append` (moviePoster m) `Text.append` "\" /></td><td><a href=\"http://www.imdb.com/title/" `Text.append` (movieImdb m) `Text.append` "/\">" `Text.append`
+              (htmlEncode $ movieTitle m) `Text.append` " (" `Text.append` (movieYear m) `Text.append` ") (" `Text.append` (movieRated m) `Text.append` ")</a></td></tr><tr class=\"" `Text.append` (ratingClass m) `Text.append` "\"><td><p>" `Text.append`
+              (htmlEncode $ moviePlot m) `Text.append` "<br /><br />Runtime: " `Text.append` (movieRuntime m) `Text.append` "<br /><br />Rated: " `Text.append` (movieRating m) `Text.append` "/10</p></td></tr>\n"
 
 imdbGetReport :: String -> String -> IO (Maybe Movie)
 imdbGetReport requestType t = imdbGet t requestType >>= \x -> if (isNothing x)
@@ -96,14 +97,14 @@ imdbGetReport requestType t = imdbGet t requestType >>= \x -> if (isNothing x)
     putStrLn $ "Done: " ++ t
     return x
 
-htmlEncode :: String -> String
-htmlEncode s = concatMap (\c-> case c of
+htmlEncode :: Text -> Text
+htmlEncode s = Text.concatMap (\c-> case c of
                                 '\"' -> "&quot;"
                                 '&' -> "&amp;"
                                 '\'' -> "&apos;"
                                 '<' -> "&lt;"
                                 '>' -> "&gt;"
-                                _ -> [c]) s
+                                _ -> pack [c]) s
 
 
 loop :: IO ()
@@ -148,20 +149,20 @@ genHtml :: IO ()
 genHtml = withSqliteConn "movies.db" $ runSqlConn $ do
   liftIO $ putStr "Generating Movies.html .."
   movies <- selectList [] [Asc MovieTitle]
-  liftIO $ UTF8.writeFile "./Movies.html" ("<html>\n<head>\n<style type=\"text/css\">\np {\n    width: 600px;\n    word-wrap: break-word;\n}\n\nimg {\n    width: 320px;\n    height: 480px;\n}\ntable {page-break-inside:auto }\n" ++
-    "tr    { page-break-inside:avoid; page-break-after:auto } \n</style>\n" ++
-    "<script type=\"text/javascript\" src=\"http://code.jquery.com/jquery-1.7.1.min.js\"></script>\n<script type=\"text/javascript\">\n  function getElementsByClassName(classname, node) {\n    if(!node) node = document.getElementsByTagName(\"body\")[0];\n" ++
-    "    var a = [];\n    var re = new RegExp('\\b' + classname + '\\b');\n    var els = node.getElementsByTagName(\"*\");\n    for(var i=0,j=els.length; i<j; i++)\n      if(re.test(els[i].className))\n        " ++
-    "a.push(els[i]);\n    return a;\n  }\n  function changeShow(ev, s) {\n    $(s).each(function(i,elem) {\n      if(ev.target.checked)\n        $(elem).show();\n      else\n        $(elem).hide();\n    });\n  }" ++
-    "\n  $(document).ready(function() {\n    $(\"#checkG\").change(function (ev) { changeShow(ev, \".ratingG\") });\n    $(\"#checkPG\").change(function (ev) { changeShow(ev, \".ratingPG\") });" ++
-    "\n    $(\"#checkPG13\").change(function (ev) { changeShow(ev, \".ratingPG13\") });\n    $(\"#checkR\").change(function (ev) { changeShow(ev, \".ratingR\") });\n    $(\"#checkNA\").change(function (ev) { changeShow(ev, \".ratingNA\") });" ++
-    "\n  }); </script>\n</head>\n<body>\n<fieldset name=\"fields1\">\n<legend>Display movies with rating:</legend>\n" ++
-    "<input id=\"checkG\" type=\"checkbox\" checked=\"true\" /><label for=\"checkG\">G</label>\n" ++
-    "<input id=\"checkPG\" type=\"checkbox\" checked=\"true\" /><label for=\"checkPG\">PG</label>\n" ++
-    "<input id=\"checkPG13\" type=\"checkbox\" checked=\"true\" /><label for=\"checkPG13\">PG-13</label>\n" ++
-    "<input id=\"checkR\" type=\"checkbox\" checked=\"true\" /><label for=\"checkR\">R</label>\n" ++
-    "<input id=\"checkNA\" type=\"checkbox\" checked=\"true\" /><label for=\"checkNA\">N/A</label>\n</fieldset>\n<table>\n" ++
-    (concat $ map (movieHtml . entityVal) movies) ++ "</table>\n</body>\n</html>")
+  liftIO $ TextIO.writeFile "./Movies.html" ("<html>\n<head>\n<style type=\"text/css\">\np {\n    width: 600px;\n    word-wrap: break-word;\n}\n\nimg {\n    width: 320px;\n    height: 480px;\n}\ntable {page-break-inside:auto }\n" `Text.append`
+    "tr    { page-break-inside:avoid; page-break-after:auto } \n</style>\n" `Text.append`
+    "<script type=\"text/javascript\" src=\"http://code.jquery.com/jquery-1.7.1.min.js\"></script>\n<script type=\"text/javascript\">\n  function getElementsByClassName(classname, node) {\n    if(!node) node = document.getElementsByTagName(\"body\")[0];\n" `Text.append`
+    "    var a = [];\n    var re = new RegExp('\\b' + classname + '\\b');\n    var els = node.getElementsByTagName(\"*\");\n    for(var i=0,j=els.length; i<j; i`Text.append`)\n      if(re.test(els[i].className))\n        " `Text.append`
+    "a.push(els[i]);\n    return a;\n  }\n  function changeShow(ev, s) {\n    $(s).each(function(i,elem) {\n      if(ev.target.checked)\n        $(elem).show();\n      else\n        $(elem).hide();\n    });\n  }" `Text.append`
+    "\n  $(document).ready(function() {\n    $(\"#checkG\").change(function (ev) { changeShow(ev, \".ratingG\") });\n    $(\"#checkPG\").change(function (ev) { changeShow(ev, \".ratingPG\") });" `Text.append`
+    "\n    $(\"#checkPG13\").change(function (ev) { changeShow(ev, \".ratingPG13\") });\n    $(\"#checkR\").change(function (ev) { changeShow(ev, \".ratingR\") });\n    $(\"#checkNA\").change(function (ev) { changeShow(ev, \".ratingNA\") });" `Text.append`
+    "\n  }); </script>\n</head>\n<body>\n<fieldset name=\"fields1\">\n<legend>Display movies with rating:</legend>\n" `Text.append`
+    "<input id=\"checkG\" type=\"checkbox\" checked=\"true\" /><label for=\"checkG\">G</label>\n" `Text.append`
+    "<input id=\"checkPG\" type=\"checkbox\" checked=\"true\" /><label for=\"checkPG\">PG</label>\n" `Text.append`
+    "<input id=\"checkPG13\" type=\"checkbox\" checked=\"true\" /><label for=\"checkPG13\">PG-13</label>\n" `Text.append`
+    "<input id=\"checkR\" type=\"checkbox\" checked=\"true\" /><label for=\"checkR\">R</label>\n" `Text.append`
+    "<input id=\"checkNA\" type=\"checkbox\" checked=\"true\" /><label for=\"checkNA\">N/A</label>\n</fieldset>\n<table>\n" `Text.append`
+    (Text.concat $ Prelude.map (movieHtml . entityVal) movies) `Text.append` "</table>\n</body>\n</html>")
   liftIO $ putStrLn ".. Done"
 
 
