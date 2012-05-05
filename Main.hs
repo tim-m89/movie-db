@@ -2,22 +2,18 @@
 
 module Main where
 
-import qualified Control.Monad.Parallel as P
-import Control.Monad.IO.Class
-import Control.Monad.Trans.Class
+import Control.Monad.IO.Class (liftIO)
 import qualified Data.Aeson as Aeson
 import Data.Attoparsec (parse, maybeResult)
-import Data.List
 import qualified Data.HashMap.Strict (fromList, lookup)
 import Data.Maybe
-import Data.String
+import Data.String (fromString)
 import Data.Text (pack, unpack)
 import Network (withSocketsDo)
 import Network.HTTP
 import qualified Network.HTTP.HandleStream as S
 import qualified System.IO.UTF8 as UTF8
 
-import Data.Tuple 
 
 import Database.Persist
 import Database.Persist.Sqlite as Sqlite
@@ -165,7 +161,7 @@ genHtml = withSqliteConn "movies.db" $ runSqlConn $ do
     "<input id=\"checkPG13\" type=\"checkbox\" checked=\"true\" /><label for=\"checkPG13\">PG-13</label>\n" ++
     "<input id=\"checkR\" type=\"checkbox\" checked=\"true\" /><label for=\"checkR\">R</label>\n" ++
     "<input id=\"checkNA\" type=\"checkbox\" checked=\"true\" /><label for=\"checkNA\">N/A</label>\n</fieldset>\n<table>\n" ++
-    (concat $ map movieHtml (map snd movies)) ++ "</table>\n</body>\n</html>")
+    (concat $ map (movieHtml . entityVal) movies) ++ "</table>\n</body>\n</html>")
   liftIO $ putStrLn ".. Done"
 
 
