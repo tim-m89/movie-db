@@ -123,7 +123,7 @@ loop = do
     maybe (return ()) addOne mm
     loop
   else do
-    putStrLn "Unknown commad"
+    putStrLn "Unknown command"
     loop
 
 addOne :: Movie -> IO ()
