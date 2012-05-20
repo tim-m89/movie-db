@@ -30,8 +30,8 @@ defAeson = Aeson.Object $ Data.HashMap.Strict.fromList [("Title", Aeson.String "
                                     ("Plot", Aeson.String "Error"),
                                     ("Poster", Aeson.String "Error"),
                                     ("Runtime", Aeson.String "Error"),
-                                    ("Rating", Aeson.String "Error"),
-                                    ("ID", Aeson.String "Error")]
+                                    ("imdbRating", Aeson.String "Error"),
+                                    ("imdbID", Aeson.String "Error")]
 
 parseJson :: String -> Aeson.Value
 parseJson x = fromMaybe defAeson (maybeResult $ parse Aeson.json $ fromString x)
@@ -58,8 +58,8 @@ aesonToMovie a = case a of
                     mplot <- get "Plot"
                     mposter <- get "Poster"
                     mruntime <- get "Runtime"
-                    mrating <- get "Rating"
-                    mid <- get "ID"
+                    mrating <- get "imdbRating"
+                    mid <- get "imdbID"
                     get "Response" >>= \r-> if r=="True" then (Just r) else Nothing
                     Just $ Movie mtitle myear mrated mplot mposter mruntime mrating mid
                     where get :: Text -> Maybe Text
@@ -93,7 +93,7 @@ movieHtml m = "<tr class=\"" `Text.append` (ratingClass m) `Text.append` "\"><td
 imdbGetReport :: String -> String -> IO (Maybe Movie)
 imdbGetReport requestType t = imdbGet t requestType >>= \x -> if (isNothing x)
   then do
-    putStrLn ("Error getting data for " ++ t)
+    putStrLn ("Error adding to db: " ++ t)
     return x
   else do
     putStrLn $ "Done: " ++ t
