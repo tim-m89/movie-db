@@ -15,7 +15,6 @@ import Network.HTTP
 import qualified Network.HTTP.HandleStream as S
 import qualified System.IO.UTF8 as UTF8
 
-
 import Database.Persist
 import Database.Persist.Sqlite as Sqlite
 import Database.Persist.TH
@@ -129,26 +128,26 @@ loop = do
     loop
 
 addOne :: Movie -> IO ()
-addOne movie = withSqliteConn "movies.db" $ runSqlConn $ do
+addOne movie = runSqlite "movies.db" $ do
   Sqlite.insert movie
   commit
   return ()
   
 main :: IO ()
-main = withSqliteConn "movies.db" $ runSqlConn $ do
+main = runSqlite "movies.db" $ do
   runMigration migrateAll
   commit
   liftIO $ loop
 
 importList :: IO ()
-importList = withSqliteConn "movies.db" $ runSqlConn $ do
+importList = runSqlite "movies.db" $ do
   mvs <- liftIO $ mapM (imdbGetReport "t") myMovies >>= return . catMaybes
   mapM (\m-> Sqlite.insert m) mvs
   commit
   return ()
 
 genHtml :: IO ()
-genHtml = withSqliteConn "movies.db" $ runSqlConn $ do
+genHtml = runSqlite "movies.db" $ do
   liftIO $ putStr "Generating Movies.html .."
   movies <- selectList [] [Asc MovieTitle]
   liftIO $ TextIO.writeFile "./Movies.html" ("<html>\n<head>\n<style type=\"text/css\">\np {\n    width: 600px;\n    word-wrap: break-word;\n}\np.title {\n  display: none;\n}\nimg" `Text.append`
