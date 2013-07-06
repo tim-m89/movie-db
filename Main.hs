@@ -16,7 +16,7 @@ import qualified Network.HTTP.HandleStream as S
 import qualified System.IO.UTF8 as UTF8
 
 import Database.Persist
-import Database.Persist.Sqlite as Sqlite
+import Database.Persist.Sqlite
 import Database.Persist.TH
 
 --fileNameTitle :: String -> String
@@ -35,7 +35,7 @@ defAeson = Aeson.Object $ Data.HashMap.Strict.fromList [("Title", Aeson.String "
 parseJson :: String -> Aeson.Value
 parseJson x = fromMaybe defAeson (maybeResult $ parse Aeson.json $ fromString x)
 
-share [mkPersist sqlSettings, mkMigrate "migrateAll"] [persist|
+share [mkPersist sqlSettings, mkMigrate "migrateAll"] [persistUpperCase|
 Movie
   title Text
   year Text
@@ -94,9 +94,7 @@ imdbGetReport requestType t = imdbGet t requestType >>= \x -> if (isNothing x)
   then do
     putStrLn ("Error adding to db: " ++ t)
     return x
-  else do
-    putStrLn $ "Done: " ++ t
-    return x
+  else return x
 
 htmlEncode :: Text -> Text
 htmlEncode s = Text.concatMap (\c-> case c of
@@ -129,21 +127,18 @@ loop = do
 
 addOne :: Movie -> IO ()
 addOne movie = runSqlite "movies.db" $ do
-  Sqlite.insert movie
-  commit
-  return ()
+  m <- insertUnique movie
+  case m of
+    Just _ -> liftIO $ putStrLn "Done"
+    Nothing -> liftIO $ putStrLn "Movie already exists"
   
 main :: IO ()
-main = runSqlite "movies.db" $ do
-  runMigration migrateAll
-  commit
-  liftIO $ loop
+main = runSqlite "movies.db" (runMigration migrateAll) >> loop
 
 importList :: IO ()
 importList = runSqlite "movies.db" $ do
   mvs <- liftIO $ mapM (imdbGetReport "t") myMovies >>= return . catMaybes
-  mapM (\m-> Sqlite.insert m) mvs
-  commit
+  mapM (\m-> insertUnique m) mvs
   return ()
 
 genHtml :: IO ()
