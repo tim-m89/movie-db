@@ -12,7 +12,6 @@ import Data.Text as Text
 import qualified Data.Text.IO as TextIO
 import Network (withSocketsDo)
 import Network.HTTP
-import qualified Network.HTTP.HandleStream as S
 import System.IO
 
 import Database.Persist
