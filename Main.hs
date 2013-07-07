@@ -13,14 +13,11 @@ import qualified Data.Text.IO as TextIO
 import Network (withSocketsDo)
 import Network.HTTP
 import qualified Network.HTTP.HandleStream as S
-import qualified System.IO.UTF8 as UTF8
+import System.IO
 
 import Database.Persist
 import Database.Persist.Sqlite
 import Database.Persist.TH
-
---fileNameTitle :: String -> String
---fileNameTitle = fst . break (=='.')
 
 defAeson :: Aeson.Value
 defAeson = Aeson.Object $ Data.HashMap.Strict.fromList [("Title", Aeson.String "Error"),
@@ -143,7 +140,7 @@ importList = runSqlite "movies.db" $ do
 
 genHtml :: IO ()
 genHtml = runSqlite "movies.db" $ do
-  liftIO $ putStr "Generating Movies.html .."
+  liftIO $ putStr "Generating Movies.html .." >> hFlush stdout
   movies <- selectList [] [Asc MovieTitle]
   liftIO $ TextIO.writeFile "./Movies.html" ("<html>\n<head>\n<style type=\"text/css\">\np {\n    width: 600px;\n    word-wrap: break-word;\n}\np.title {\n  display: none;\n}\nimg" `Text.append`
     " {\n    width: 320px;\n    height: 480px;\n}\ntable {page-break-inside:auto }\n" `Text.append`
