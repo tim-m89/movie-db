@@ -125,7 +125,9 @@ addOne :: Movie -> IO ()
 addOne movie = runSqlite "movies.db" $ do
   m <- insertUnique movie
   case m of
-    Just _ -> liftIO $ putStrLn "Done"
+    Just k -> do
+      Just mv <- get k
+      liftIO $ TextIO.putStrLn ("Done: \"" `Text.append` (movieTitle mv) `Text.append` "\" (" `Text.append` (movieYear mv) `Text.append` ")")
     Nothing -> liftIO $ putStrLn "Movie already exists"
   
 main :: IO ()
