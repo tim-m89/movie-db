@@ -1,15 +1,18 @@
-{-# LANGUAGE QuasiQuotes, TemplateHaskell, TypeFamilies, OverloadedStrings, GADTs, DoAndIfThenElse, FlexibleContexts #-}
+{-# LANGUAGE QuasiQuotes, TemplateHaskell, TypeFamilies, OverloadedStrings, GADTs, DoAndIfThenElse, FlexibleContexts, TypeSynonymInstances, FlexibleInstances #-}
 
 module Main where
 
+import Control.Applicative
+import Control.Monad
 import Control.Monad.IO.Class (liftIO)
-import qualified Data.Aeson as Aeson
+import Data.Aeson
 import Data.Attoparsec (parse, maybeResult)
+import qualified Data.ByteString.Lazy.Char8 as LCB
 import qualified Data.HashMap.Strict (fromList, lookup)
 import Data.Maybe
 import Data.String (fromString)
-import Data.Text as Text
-import qualified Data.Text.IO as TextIO
+import Data.Text.Lazy as Text
+import qualified Data.Text.Lazy.IO as TextIO
 import Network (withSocketsDo)
 import Network.HTTP
 import System.IO
@@ -17,19 +20,6 @@ import System.IO
 import Database.Persist
 import Database.Persist.Sqlite
 import Database.Persist.TH
-
-defAeson :: Aeson.Value
-defAeson = Aeson.Object $ Data.HashMap.Strict.fromList [("Title", Aeson.String "Error"),
-                                    ("Year", Aeson.String "Error"),
-                                    ("Rated", Aeson.String "Error"),
-                                    ("Plot", Aeson.String "Error"),
-                                    ("Poster", Aeson.String "Error"),
-                                    ("Runtime", Aeson.String "Error"),
-                                    ("imdbRating", Aeson.String "Error"),
-                                    ("imdbID", Aeson.String "Error")]
-
-parseJson :: String -> Aeson.Value
-parseJson x = fromMaybe defAeson (maybeResult $ parse Aeson.json $ fromString x)
 
 share [mkPersist sqlSettings, mkMigrate "migrateAll"] [persistUpperCase|
 Movie
@@ -44,27 +34,34 @@ Movie
   MovieIMDB imdb
 |]
 
-aesonToMovie :: Aeson.Value -> Maybe Movie
-aesonToMovie a = case a of
-                  Aeson.Object o -> do
-                    mtitle <- get "Title"
-                    myear <- get "Year"
-                    mrated <- get "Rated"
-                    mplot <- get "Plot"
-                    mposter <- get "Poster"
-                    mruntime <- get "Runtime"
-                    mrating <- get "imdbRating"
-                    mid <- get "imdbID"
-                    get "Response" >>= \r-> if r=="True" then (Just r) else Nothing
-                    Just $ Movie mtitle myear mrated mplot mposter mruntime mrating mid
-                    where get :: Text -> Maybe Text
-                          get s = case (Data.HashMap.Strict.lookup s o) of
-                            Just (Aeson.String s) -> Just s
-                            _ -> Nothing
-                  _ -> Nothing
+
+instance FromJSON Movie where
+  parseJSON (Object v) =
+    Movie <$> v .: "Title"
+          <*> v .: "Year"
+          <*> v .: "Rated"
+          <*> v .: "Plot"
+          <*> v .: "Poster"
+          <*> v .: "Runtime"
+          <*> v .: "imdbRating"
+          <*> v .: "imdbID"
+  parseJSON _ = mzero
+
+instance ToJSON Movie where
+  toJSON (Movie mtitle myear mrated mplot mposter mruntime mrating mid) =
+    object [ "Title"      .= mtitle
+           , "Year"       .= myear
+           , "Rated"      .= mrated
+           , "Plot"       .= mplot
+           , "Poster"     .= mposter
+           , "Runtime"    .= mruntime
+           , "imdbRating" .= mrating
+           , "imdbID"     .= mid
+           ]
+          
 
 imdbGet :: String -> String -> IO (Maybe Movie)
-imdbGet s requestType = withSocketsDo $ simpleHTTP (getRequest $ "http://www.imdbapi.com/?" ++ requestType ++ "=" ++ (urlEncode s)) >>= getResponseBody >>= \x-> return (parseJson x) >>= \x-> return (aesonToMovie x)
+imdbGet s requestType = withSocketsDo $ simpleHTTP (getRequest $ "http://www.imdbapi.com/?" ++ requestType ++ "=" ++ (urlEncode s)) >>= getResponseBody >>= \x-> return $ decode $  LCB.pack x
 
 myMovies :: [String]
 myMovies = [
