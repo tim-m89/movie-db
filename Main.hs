@@ -21,6 +21,12 @@ import Database.Persist
 import Database.Persist.Sqlite
 import Database.Persist.TH
 
+import Text.Hamlet
+import Text.Lucius
+import Text.Julius
+import Text.Blaze.Html
+import Text.Blaze.Html.Renderer.Text
+
 share [mkPersist sqlSettings, mkMigrate "migrateAll"] [persistUpperCase|
 Movie
   title Text
@@ -75,12 +81,26 @@ ratingClass m = case (movieRated m) of
   "PG-13" -> "ratingPG13"
   otherwise -> "ratingNA"
 
-movieHtml :: Movie -> Text
-movieHtml m = "<tr class=\"" `Text.append` (ratingClass m) `Text.append` "\"><td rowspan=\"2\"><img src=\"" `Text.append` (moviePoster m) `Text.append` "\" /></td><td>" `Text.append` "<p class=\"title\">" `Text.append`
-              (htmlEncode $ movieTitle m) `Text.append` " (" `Text.append` (movieYear m) `Text.append` ") (" `Text.append` (movieRated m) `Text.append` ")</p>" `Text.append` "<a href=\"http://www.imdb.com/title/" `Text.append`
-              (movieImdb m) `Text.append` "/\">" `Text.append` (htmlEncode $ movieTitle m) `Text.append` " (" `Text.append` (movieYear m) `Text.append` ") (" `Text.append` (movieRated m) `Text.append`
-              ")</a></td></tr><tr class=\"" `Text.append` (ratingClass m) `Text.append` "\"><td><p>" `Text.append` (htmlEncode $ moviePlot m) `Text.append` "<br /><br />Runtime: " `Text.append`
-              (movieRuntime m) `Text.append` "<br /><br />Rated: " `Text.append` (movieRating m) `Text.append` "/10</p></td></tr>\n"
+movieHtml :: Movie -> Html
+movieHtml m = [shamlet|
+<tr class="#{ratingClass m}">
+  <td rowspan="2">
+    <img src="#{moviePoster m}">
+  <td>
+    <p class="title">#{htmlEncode $ movieTitle m} (#{movieYear m}) (#{movieRated m})>
+    <a href="http://www.imdb.com/title/#{movieImdb m}">
+      #{htmlEncode $ movieTitle m} (#{movieYear m}) (#{movieRated m})
+<tr class="#{ratingClass m}">
+  <td>
+    <p>
+      #{htmlEncode $ moviePlot m}
+      <br>
+      <br>
+      Runtime: #{movieRuntime m}
+      <br>
+      <br>
+      Rated: #{movieRating m}/10
+|]
 
 imdbGetReport :: String -> String -> IO (Maybe Movie)
 imdbGetReport requestType t = imdbGet t requestType >>= \x -> if (isNothing x)
@@ -136,26 +156,107 @@ importList = runSqlite "movies.db" $ do
   mapM (\m-> insertUnique m) mvs
   return ()
 
+
+
+luc1 = renderCss $ [lucius|
+p {
+    width: 600px;
+    word-wrap: break-word;
+}
+p.title {
+  display: none;
+}
+img {
+    width: 320px;
+    height: 480px;
+}
+table {
+  page-break-inside: auto;
+}
+tr {
+  page-break-inside: avoid;
+  page-break-after: auto;
+}
+|] undefined
+
+
+
+luc2 = renderCss $ [lucius|
+p {
+  width: auto;
+  font-size: 32pt;
+}
+fieldset {
+  display: none;
+}
+a {
+  display: none;
+}
+p.title {
+  font-size: 32pt;
+  display: inline;
+}
+|] undefined
+
+
+jul1 = renderJavascript $ [julius|
+function getElementsByClassName(classname, node) {
+    if(!node)
+      node = document.getElementsByTagName("body")[0];
+    var a = [];
+    var re = new RegExp('\\b' + classname + '\\b');
+    var els = node.getElementsByTagName("*");
+    for(var i=0,j=els.length; i<j; i++)
+      if(re.test(els[i].className))        
+        a.push(els[i]);
+    return a;
+  }
+  function changeShow(ev, s) {
+    $(s).each(function(i,elem) {
+      if(ev.target.checked)
+        $(elem).show();
+      else
+        $(elem).hide();
+    });
+  }
+  $(document).ready(function() {
+    $("#checkG").change(function (ev) { changeShow(ev, ".ratingG") });
+    $("#checkPG").change(function (ev) { changeShow(ev, ".ratingPG") });
+    $("#checkPG13").change(function (ev) { changeShow(ev, ".ratingPG13") });
+    $("#checkR").change(function (ev) { changeShow(ev, ".ratingR") });
+    $("#checkNA").change(function (ev) { changeShow(ev, ".ratingNA") });
+  });
+|] undefined
+
 genHtml :: IO ()
 genHtml = runSqlite "movies.db" $ do
   liftIO $ putStr "Generating Movies.html .." >> hFlush stdout
   movies <- selectList [] [Asc MovieTitle]
-  liftIO $ TextIO.writeFile "./Movies.html" ("<html>\n<head>\n<style type=\"text/css\">\np {\n    width: 600px;\n    word-wrap: break-word;\n}\np.title {\n  display: none;\n}\nimg" `Text.append`
-    " {\n    width: 320px;\n    height: 480px;\n}\ntable {page-break-inside:auto }\n" `Text.append`
-    "tr    { page-break-inside:avoid; page-break-after:auto }\n</style>\n<style type=\"text/css\" media=\"print\">\np {\n  width: auto;\n  font-size: 32pt;\n}\nfieldset {\n  display: none;\n}\na {\n  display: none;\n}\np.title" `Text.append`
-    " {\n  font-size: 32pt;\n  display: inline;\n}\n</style>\n" `Text.append`
-    "<script type=\"text/javascript\" src=\"http://code.jquery.com/jquery-1.7.1.min.js\"></script>\n<script type=\"text/javascript\">\n  function getElementsByClassName(classname, node) {\n    if(!node) node = document.getElementsByTagName(\"body\")[0];\n" `Text.append`
-    "    var a = [];\n    var re = new RegExp('\\b' + classname + '\\b');\n    var els = node.getElementsByTagName(\"*\");\n    for(var i=0,j=els.length; i<j; i++)\n      if(re.test(els[i].className))\n        " `Text.append`
-    "a.push(els[i]);\n    return a;\n  }\n  function changeShow(ev, s) {\n    $(s).each(function(i,elem) {\n      if(ev.target.checked)\n        $(elem).show();\n      else\n        $(elem).hide();\n    });\n  }" `Text.append`
-    "\n  $(document).ready(function() {\n    $(\"#checkG\").change(function (ev) { changeShow(ev, \".ratingG\") });\n    $(\"#checkPG\").change(function (ev) { changeShow(ev, \".ratingPG\") });" `Text.append`
-    "\n    $(\"#checkPG13\").change(function (ev) { changeShow(ev, \".ratingPG13\") });\n    $(\"#checkR\").change(function (ev) { changeShow(ev, \".ratingR\") });\n    $(\"#checkNA\").change(function (ev) { changeShow(ev, \".ratingNA\") });" `Text.append`
-    "\n  }); </script>\n</head>\n<body>\n<fieldset name=\"fields1\">\n<legend>Display movies with rating:</legend>\n" `Text.append`
-    "<input id=\"checkG\" type=\"checkbox\" checked=\"true\" /><label for=\"checkG\">G</label>\n" `Text.append`
-    "<input id=\"checkPG\" type=\"checkbox\" checked=\"true\" /><label for=\"checkPG\">PG</label>\n" `Text.append`
-    "<input id=\"checkPG13\" type=\"checkbox\" checked=\"true\" /><label for=\"checkPG13\">PG-13</label>\n" `Text.append`
-    "<input id=\"checkR\" type=\"checkbox\" checked=\"true\" /><label for=\"checkR\">R</label>\n" `Text.append`
-    "<input id=\"checkNA\" type=\"checkbox\" checked=\"true\" /><label for=\"checkNA\">N/A</label>\n</fieldset>\n<table>\n" `Text.append`
-    (Text.concat $ Prelude.map (movieHtml . entityVal) movies) `Text.append` "</table>\n</body>\n</html>")
+  let movies' = Prelude.map (movieHtml . entityVal) movies
+  liftIO $ TextIO.writeFile "./Movies.html" $ renderHtml [shamlet|
+<html>
+  <head>
+    <style type="text/css">#{preEscapedToHtml luc1}
+    <style type="text/css" media="print">#{preEscapedToHtml luc2}
+    <script type="text/javascript" src="http://code.jquery.com/jquery-1.7.1.min.js">
+    <script type="text/javascript">#{preEscapedToHtml jul1}
+  <body>
+    <fieldset name="fields1">
+      <legend>Display movies with rating:
+      <input id="checkG" type="checkbox" checked="true">
+      <label for="checkG">G
+      <input id="checkPG" type="checkbox" checked="true">
+      <label for="checkPG">PG
+      <input id="checkPG13" type="checkbox" checked="true">
+      <label for="checkPG13">PG-13
+      <input id="checkR" type="checkbox" checked="true">
+      <label for="checkR">R
+      <input id="checkNA" type="checkbox" checked="true">
+      <label for="checkNA">N/A
+    <table>
+      $forall movie <- movies'
+        ^{movie}
+|]
   liftIO $ putStrLn ".. Done"
 
 
