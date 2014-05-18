@@ -102,6 +102,9 @@ movieHtml m = [shamlet|
       Rated: #{movieRating m}/10
 |]
 
+movieText :: Movie -> Text
+movieText m = (movieTitle m) `Text.append` " (" `Text.append` (movieYear m) `Text.append` ")"
+
 imdbGetReport :: String -> String -> IO (Maybe Movie)
 imdbGetReport requestType t = imdbGet t requestType >>= \x -> if (isNothing x)
   then do
@@ -128,6 +131,9 @@ loop = do
     loop
   else if line=="html" then do
     genHtml
+    loop
+  else if line=="text" then do
+    genText
     loop
   else if line=="add" then do
     mid <- getLine
@@ -227,6 +233,14 @@ function getElementsByClassName(classname, node) {
     $("#checkNA").change(function (ev) { changeShow(ev, ".ratingNA") });
   });
 |] undefined
+
+genText :: IO ()
+genText = runSqlite "movies.db" $ do
+  liftIO $ putStr "Generating Movies.txt .." >> hFlush stdout
+  movies <- selectList [] [Asc MovieTitle]
+  let movies' = Text.unlines $ Prelude.map (movieText . entityVal) movies
+  liftIO $ TextIO.writeFile "./Movies.txt" movies' 
+  liftIO $ putStrLn ".. Done"
 
 genHtml :: IO ()
 genHtml = runSqlite "movies.db" $ do
