@@ -48,7 +48,7 @@ Executable movie-db
   Main-is:  Main.hs       
   
   -- Packages needed in order to build this package.
-  Build-depends: base >= 3 && < 5, network >= 2.3, bytestring, HTTP, aeson, attoparsec, text, unordered-containers, persistent >= 1.2.0, persistent-sqlite >= 1.2.0, persistent-template >= 1.2.0, transformers, hamlet, shakespeare-css, shakespeare-js, blaze-html 
+  Build-depends: base >= 3 && < 5, network >= 2.3, bytestring, HTTP, aeson, attoparsec, text, unordered-containers, persistent >= 1.2.0, persistent-sqlite >= 1.2.0, persistent-template >= 1.2.0, transformers, hamlet, shakespeare, blaze-html
 
   GHC-Options: -threaded -O2 
  
