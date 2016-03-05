@@ -67,7 +67,7 @@ instance ToJSON Movie where
           
 
 imdbGet :: String -> String -> IO (Maybe Movie)
-imdbGet s requestType = withSocketsDo $ simpleHTTP (getRequest $ "http://www.imdbapi.com/?" ++ requestType ++ "=" ++ (urlEncode s)) >>= getResponseBody >>= \x-> return $ decode $  LCB.pack x
+imdbGet s requestType = withSocketsDo $ simpleHTTP (getRequest $ "http://www.omdbapi.com/?" ++ requestType ++ "=" ++ (urlEncode s)) >>= getResponseBody >>= \x-> return $ decode $  LCB.pack x
 
 myMovies :: [String]
 myMovies = [
