@@ -6,7 +6,6 @@ import Control.Applicative
 import Control.Monad
 import Control.Monad.IO.Class (liftIO)
 import Data.Aeson
-import Data.Attoparsec (parse, maybeResult)
 import qualified Data.ByteString.Lazy.Char8 as LCB
 import qualified Data.HashMap.Strict (fromList, lookup)
 import Data.Maybe
